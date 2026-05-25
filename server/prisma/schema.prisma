@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities       Activity[]
+  groupMemberships GroupMember[]
+  createdGroups    Group[]       @relation("GroupCreator")
+  eventProposals   EventProposal[]
+  votes            Vote[]
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title     String
+  type      String
+  date      DateTime  // CHANGED from String
+  startTime DateTime  // CHANGED from String
+  endTime   DateTime  // CHANGED from String
+  
+  isRecurring       Boolean   @default(false)
+  recurrence        String?
+  recurrenceEndDate DateTime? // CHANGED from String
+  
+  eventProposalId String?       @unique
+  eventProposal   EventProposal? @relation(fields: [eventProposalId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  creatorId   String
+  creator     User     @relation("GroupCreator", fields: [creatorId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members        GroupMember[]
+  eventProposals EventProposal[]
+}
+
+model GroupMember {
+  id       String @id @default(uuid())
+  groupId  String
+  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     String @default("member") // 'admin' or 'member'
+  
+  joinedAt DateTime @default(now())
+
+  @@unique([groupId, userId])
+}
+
+model EventProposal {
+  id          String   @id @default(uuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id])
+  
+  title       String
+  description String?
+  date        DateTime  // CHANGED from String
+  startTime   DateTime  // CHANGED from String
+  endTime     DateTime  // CHANGED from String
+  location    String?
+  
+  status      String   @default("proposed")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  votes           Vote[]
+  finalizedActivity Activity?
+}
+
+model Vote {
+  id              String        @id @default(uuid())
+  eventProposalId String
+  eventProposal   EventProposal @relation(fields: [eventProposalId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  response        String        // 'yes', 'no', 'maybe'
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([eventProposalId, userId])
+}
